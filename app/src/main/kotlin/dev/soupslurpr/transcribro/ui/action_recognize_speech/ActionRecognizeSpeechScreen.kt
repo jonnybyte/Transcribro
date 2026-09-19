@@ -10,15 +10,21 @@ import android.os.Build
 import android.os.Bundle
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -26,13 +32,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
+import dev.soupslurpr.transcribro.dataStore
+import dev.soupslurpr.transcribro.preferences.PreferencesViewModel
 import dev.soupslurpr.transcribro.recognitionservice.MainRecognitionService
 
 @OptIn(ExperimentalPermissionsApi::class)
@@ -44,6 +55,12 @@ fun ActionRecognizeSpeechScreen(
 
     val speechRecognizerUiState by speechRecognizerViewModel.uiState.collectAsState()
 
+    val preferencesViewModel: PreferencesViewModel = viewModel(
+        factory = PreferencesViewModel.PreferencesViewModelFactory(LocalContext.current.dataStore)
+    )
+
+    val preferencesUiState by preferencesViewModel.uiState.collectAsState()
+
     val context = LocalContext.current
 
     val microphonePermissionState = rememberPermissionState(
@@ -52,6 +69,20 @@ fun ActionRecognizeSpeechScreen(
 
     var alreadyRequestedMicrophonePermissionOnce by rememberSaveable {
         mutableStateOf(false)
+    }
+
+    fun makeStartListeningIntent(): Intent {
+        return Intent().apply {
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+            putExtra(
+                RecognizerIntent.EXTRA_LANGUAGE,
+                preferencesUiState.languageOverride.second.value
+            )
+            putExtra(
+                MainRecognitionService.EXTRA_MODEL,
+                preferencesUiState.model.second.value
+            )
+        }
     }
 
     LaunchedEffect(true) {
@@ -159,35 +190,57 @@ fun ActionRecognizeSpeechScreen(
     LaunchedEffect(microphonePermissionState.status.isGranted) {
         if (!speechRecognizerUiState.isRecognizing && (!alreadyRequestedMicrophonePermissionOnce || microphonePermissionState.status.isGranted)) {
             speechRecognizerViewModel.startListening(
-                Intent()
+                makeStartListeningIntent()
             )
         }
     }
 
-    FilledIconToggleButton(
-        checked = speechRecognizerUiState.isRecognizing,
-        onCheckedChange = {
-            if (speechRecognizerUiState.isRecognizing) {
-                speechRecognizerViewModel.stopListening()
-            } else {
-                speechRecognizerViewModel.startListening(
-                    Intent()
+    Box(modifier = Modifier.fillMaxSize()) {
+        FilledIconToggleButton(
+            checked = speechRecognizerUiState.isRecognizing,
+            onCheckedChange = {
+                if (speechRecognizerUiState.isProcessing) {
+                    // Ignore taps while processing
+                } else if (speechRecognizerUiState.isRecognizing) {
+                    speechRecognizerViewModel.stopListening()
+                } else {
+                    speechRecognizerViewModel.startListening(
+                        makeStartListeningIntent()
+                    )
+                }
+            },
+            modifier = Modifier
+                .fillMaxHeight()
+                .fillMaxWidth(),
+            shape = RoundedCornerShape(10.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Mic,
+                contentDescription = if (speechRecognizerUiState.isRecognizing) {
+                    "Speech recognition active"
+                } else {
+                    "Speech recognition inactive"
+                },
+                modifier = Modifier.size(165.dp)
+            )
+        }
+
+        // Processing banner overlay
+        if (speechRecognizerUiState.isProcessing) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.primaryContainer)
+                    .padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "⏳ Transcribing…",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             }
-        },
-        modifier = Modifier
-            .fillMaxHeight()
-            .fillMaxWidth(),
-        shape = RoundedCornerShape(10.dp)
-    ) {
-        Icon(
-            imageVector = Icons.Outlined.Mic,
-            contentDescription = if (speechRecognizerUiState.isRecognizing) {
-                "Speech recognition active"
-            } else {
-                "Speech recognition inactive"
-            },
-            modifier = Modifier.size(165.dp)
-        )
+        }
     }
 }

@@ -21,7 +21,8 @@ private class CpuInfo(private val lines: List<String>) {
     private fun getHighPerfCpuCountByFrequencies(): Int =
         getCpuValues(property = "processor") { getMaxCpuFrequency(it.toInt()) }
             .also { Log.d(LOG_TAG, "Binned cpu frequencies (frequency, count): ${it.binnedValues()}") }
-            .countOnlyMax()
+            .countDroppingMin()
+            .coerceIn(1, 8)
 
     private fun getHighPerfCpuCountByVariant(): Int =
         getCpuValues(property = "CPU variant") { it.substringAfter("0x").toInt(radix = 16) }

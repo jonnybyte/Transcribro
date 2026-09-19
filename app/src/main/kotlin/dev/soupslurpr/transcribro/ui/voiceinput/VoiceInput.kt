@@ -48,10 +48,12 @@ import androidx.compose.material.icons.outlined.Done
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.Scaffold
@@ -103,6 +105,8 @@ import kotlin.time.Duration.Companion.milliseconds
 private var speechRecognizer: MutableState<SpeechRecognizer?> = mutableStateOf(null)
 
 private var isRecognizing by mutableStateOf(false)
+
+private var isProcessing by mutableStateOf(false)
 
 private var showInsufficientPermissionsError by mutableStateOf(false)
 
@@ -268,6 +272,8 @@ class VoiceInput : InputMethodService() {
 
                                                 override fun onEndOfSpeech() {
                                                     isSpeaking = false
+                                                    isRecognizing = false
+                                                    isProcessing = true
                                                 }
 
                                                 override fun onError(error: Int) {
@@ -291,6 +297,7 @@ class VoiceInput : InputMethodService() {
                                                 }
 
                                                 override fun onResults(results: Bundle?) {
+                                                    isProcessing = false
                                                     isRecognizing = false
 
                                                     if (audioManager.ringerMode == AudioManager.RINGER_MODE_NORMAL) {
@@ -438,7 +445,9 @@ class VoiceInput : InputMethodService() {
                                             if (autoStartRecognition) {
                                                 speechRecognizer.value!!.startListening(
                                                     getStartListeningIntent(
-                                                        autoStopRecognition
+                                                        autoStopRecognition,
+                                                        preferencesUiState.languageOverride.second.value,
+                                                        preferencesUiState.model.second.value
                                                     )
                                                 )
                                             }
@@ -446,10 +455,11 @@ class VoiceInput : InputMethodService() {
                                     }
                                 }
 
-                                Column(
-                                    Modifier
-                                        .fillMaxSize()
-                                ) {
+                                Column(Modifier.fillMaxSize()) {
+                                    Column(
+                                        Modifier
+                                            .fillMaxSize()
+                                    ) {
                                     Row(
                                         modifier = Modifier.fillMaxSize(),
                                         verticalAlignment = Alignment.CenterVertically,
@@ -535,35 +545,52 @@ class VoiceInput : InputMethodService() {
                                                     )
                                                 }
                                             }
-                                            FilledIconToggleButton(
-                                                checked = isRecognizing,
-                                                onCheckedChange = {
-                                                    if (isRecognizing) {
-                                                        speechRecognizer.value?.stopListening()
-                                                    } else {
-                                                        speechRecognizer.value?.startListening(
-                                                            getStartListeningIntent(
-                                                                autoStopRecognition
-                                                            )
-                                                        )
-                                                    }
-                                                },
+                                            Box(
                                                 modifier = Modifier
                                                     .fillMaxHeight()
                                                     .fillMaxWidth()
                                                     .weight(0.75f)
-                                                    .padding(top = 2.dp),
-                                                shape = RoundedCornerShape(10.dp)
+                                                    .padding(top = 2.dp)
                                             ) {
-                                                Icon(
-                                                    imageVector = Icons.Outlined.Mic,
-                                                    contentDescription = if (isRecognizing) {
-                                                        "Speech recognition active"
-                                                    } else {
-                                                        "Speech recognition inactive"
+                                                FilledIconToggleButton(
+                                                    checked = isRecognizing,
+                                                    onCheckedChange = {
+                                                        if (isRecognizing) {
+                                                            speechRecognizer.value?.stopListening()
+                                                        } else {
+                                                            speechRecognizer.value?.startListening(
+                                                                getStartListeningIntent(
+                                                                    autoStopRecognition,
+                                                                    preferencesUiState.languageOverride.second.value,
+                                                                    preferencesUiState.model.second.value
+                                                                )
+                                                            )
+                                                        }
                                                     },
-                                                    modifier = Modifier.size(165.dp)
-                                                )
+                                                    modifier = Modifier.fillMaxSize(),
+                                                    shape = RoundedCornerShape(10.dp)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Outlined.Mic,
+                                                        contentDescription = if (isRecognizing) {
+                                                            "Speech recognition active"
+                                                        } else {
+                                                            "Speech recognition inactive"
+                                                        },
+                                                        modifier = Modifier.size(165.dp)
+                                                    )
+                                                }
+
+                                                if (isProcessing) {
+                                                    CircularProgressIndicator(
+                                                        modifier = Modifier
+                                                            .align(Alignment.TopEnd)
+                                                            .size(24.dp)
+                                                            .padding(2.dp),
+                                                        strokeWidth = 2.dp,
+                                                        color = MaterialTheme.colorScheme.primary
+                                                    )
+                                                }
                                             }
                                         }
                                         Spacer(modifier = Modifier.size(8.dp))
@@ -919,6 +946,7 @@ class VoiceInput : InputMethodService() {
                 }
             }
         }
+    }
 
         return view
     }
@@ -945,10 +973,16 @@ class VoiceInput : InputMethodService() {
         speechRecognizer.value = null
     }
 
-    private fun getStartListeningIntent(longForm: Boolean): Intent {
+    private fun getStartListeningIntent(
+        longForm: Boolean,
+        language: String = dev.soupslurpr.transcribro.recognitionservice.whisper.WhisperLanguage.AUTO,
+        modelSpec: String = dev.soupslurpr.transcribro.recognitionservice.whisper.WhisperModel.DEFAULT.assetPath
+    ): Intent {
         return Intent().apply {
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
             putExtra(MainRecognitionService.EXTRA_AUTO_STOP, longForm)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, language)
+            putExtra(MainRecognitionService.EXTRA_MODEL, modelSpec)
         }
     }
 }

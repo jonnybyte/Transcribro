@@ -1,5 +1,13 @@
 # Transcribro
 
+This is a personal fork of [Transcribro](https://github.com/soupslurpr/Transcribro) with the following changes:
+
+- **Multilingual Whisper model:** Replaced the English-only model with `ggml-model-whisper-tiny-q4_0`, supporting German and English recognition.
+- **Language selection:** Choose recognition language in settings (auto-detect, German, English, and 14 more).
+- **Model management:** Import custom Whisper models or download alternative models via links in settings.
+- **Improved UI feedback:** A spinner on the mic button indicates when transcription is processing.
+- **Performance optimizations:** Uses all performance cores (6 threads on Pixel Tensor); 16 KB page alignment for Android 16 compatibility.
+
 Transcribro is a private and on-device speech recognition keyboard and service for Android.\
 It uses whisper.cpp to run the OpenAI Whisper family of models and Silero VAD for voice activity detection.\
 It features a voice input keyboard, enabling you to type with speech.\
@@ -8,7 +16,8 @@ may use for speech to text.
 
 ## Language support
 
-Transcribro currently only supports English. However, supporting other languages is planned and tracked in https://github.com/soupslurpr/Transcribro/issues/18.
+Transcribro currently only supports English (upstream).\
+This fork adds multilingual support (German, English, and 14 other languages via auto-detect).
 
 ## Download
 

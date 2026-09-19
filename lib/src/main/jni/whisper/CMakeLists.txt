@@ -66,6 +66,9 @@ function(build_library target_name)
         target_link_options(${target_name} PRIVATE -flto)
     endif ()
 
+    # 16 KB page size alignment for Android 16+ compatibility.
+    target_link_options(${target_name} PRIVATE -Wl,-z,max-page-size=16384)
+
     if (GGML_HOME)
         include(FetchContent)
         FetchContent_Declare(ggml SOURCE_DIR ${GGML_HOME})

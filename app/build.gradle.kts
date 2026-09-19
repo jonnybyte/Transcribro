@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -46,6 +48,10 @@ android {
     androidResources {
         generateLocaleConfig = true
         localeFilters += listOf("en")
+        // Store Whisper model files (.bin) uncompressed: it lets them be read/mmapped
+        // directly, and avoids the release-build "compressAssets" step choking on a
+        // placeholder/empty .bin asset.
+        noCompress += "bin"
     }
     buildTypes {
         release {
@@ -76,6 +82,12 @@ android {
     }
 }
 
+kotlin {
+    compilerOptions {
+        jvmTarget = JvmTarget.JVM_17
+    }
+}
+
 dependencies {
 
     implementation(project(":lib"))
@@ -98,4 +110,14 @@ dependencies {
     implementation("androidx.datastore:datastore-preferences:1.1.7")
     implementation("com.google.accompanist:accompanist-permissions:0.37.3")
     implementation("com.microsoft.onnxruntime:onnxruntime-android:1.22.0")
+
+    testImplementation("org.junit.jupiter:junit-jupiter:5.11.4")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.11.4")
+    testImplementation("org.mockito.kotlin:mockito-kotlin:5.4.0")
+    testImplementation("org.mockito:mockito-inline:5.2.0")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
+}
+
+tasks.withType<Test>().configureEach {
+    useJUnitPlatform()
 }

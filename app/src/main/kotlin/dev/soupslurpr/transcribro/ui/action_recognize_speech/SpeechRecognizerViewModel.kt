@@ -24,6 +24,7 @@ class SpeechRecognizerViewModel(application: Application) : AndroidViewModel(app
         val speechRecognizer: MutableState<SpeechRecognizer?> = mutableStateOf(null)
         var isSpeaking by mutableStateOf(false)
         var isRecognizing by mutableStateOf(false)
+        var isProcessing by mutableStateOf(false)
         var showInsufficientPermissionsError by mutableStateOf(false)
         var showRecognizerBusyOrClientError by mutableStateOf(false)
     }
@@ -64,9 +65,13 @@ class SpeechRecognizerViewModel(application: Application) : AndroidViewModel(app
 
         override fun onEndOfSpeech() {
             speechRecognizerViewModel.setIsSpeaking(false)
+            speechRecognizerViewModel.setIsRecognizing(false)
+            speechRecognizerViewModel.setIsProcessing(true)
         }
 
         override fun onError(error: Int) {
+            speechRecognizerViewModel.setIsProcessing(false)
+
             when (error) {
                 SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> {
                     speechRecognizerViewModel.setShowInsufficientPermissionsError(true)
@@ -82,6 +87,7 @@ class SpeechRecognizerViewModel(application: Application) : AndroidViewModel(app
         }
 
         override fun onResults(results: Bundle?) {
+            speechRecognizerViewModel.setIsProcessing(false)
             speechRecognizerViewModel.setIsRecognizing(false)
 
             if (audioManager.ringerMode == AudioManager.RINGER_MODE_NORMAL) {
@@ -107,6 +113,10 @@ class SpeechRecognizerViewModel(application: Application) : AndroidViewModel(app
 
     fun setIsRecognizing(value: Boolean) {
         _uiState.value.isRecognizing = value
+    }
+
+    fun setIsProcessing(value: Boolean) {
+        _uiState.value.isProcessing = value
     }
 
     fun setIsSpeaking(value: Boolean) {
